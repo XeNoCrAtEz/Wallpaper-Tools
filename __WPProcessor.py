@@ -254,5 +254,7 @@ class WPProcessor():
     def check_need_edit( self, filename ):
         imagePath = os.path.join(self.dirname, filename)
         with Image.open(imagePath) as image:
-            if image.height < 1080 or image.width < 1920 or round(image.width/image.height, 2) != round(16/9, 2):
+            ratio = image.width/image.height
+            isWithinRatio = (16/9)*98/100 <= ratio <= (16/9)*102/100        # check whether the image ratio is 16:9 (with +- 2% tolerance)
+            if image.height < 1080 or image.width < 1920 or not isWithinRatio:
                 return filename
