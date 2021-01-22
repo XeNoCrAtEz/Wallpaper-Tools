@@ -233,28 +233,66 @@ class WPProcessor():
     # method for finding images that needs to be edited (crop and resize),
     # because the resolution is less than 1080p or the ratio is not 16:9
     def find_need_edits( self ):
-        needEdits = []      # a list for storing images that needs to be edited
+        needResizes = []        # a list for storing images that needs to be resized
+        needCrops = []          # a list for storing images that needs to be cropped
+        needCropsResizes = []   # a list for storing images that needs to be cropped and resized
         # create a multiprocess pool
         with multiprocessing.get_context("spawn").Pool() as p:
-            # find all images that needs to be edited
-            needEdits = p.map(self.check_need_edit, self.filenames)
-        
-        # move all the images that needs to be edited to "need_edits" folder
-        if needEdits :
-            self.move_filenames(needEdits, "Need_edits")
-        else :
-            print("There are no images that needs to be edited")
-        
-        print("Done searching for images that needs to be edited!")
-        self.update_filenames()
+            # find all images that needs to be resized only
+            needResizes = p.map(self.check_need_resize, self.filenames)
+            # move all the images that needs to be edited to "need_resize" folder
+            if needResizes :
+                self.move_filenames(needResizes, "Need_resize")
+            else :
+                print("There are no images that needs to be resized")
+            self.update_filenames()
 
-    # method for checking whether the image needs to be edited or not.
-    # returns the image if it needs edit. returns nothing if it doesn't.
-    # an image needs to be edited if it is less than 1080p or the ratio isn't 16:9
-    def check_need_edit( self, filename ):
+            # find all images that needs to be cropped only
+            needCrops = p.map(self.check_need_crop, self.filenames)
+            # move all the images that needs to be edited to "need_crop" folder
+            if needCrops :
+                self.move_filenames(needCrops, "Need_crop")
+            else :
+                print("There are no images that needs to be cropped")
+            self.update_filenames()
+
+            # find all images that needs to be cropped and resized
+            needCropsResizes = p.map(self.check_need_crop_resize, self.filenames)
+            # move all the images that needs to be edited to "need_crop_resize" folder
+            if needCropsResizes :
+                self.move_filenames(needCropsResizes, "Need_crop_resize")
+            else :
+                print("There are no images that needs to be cropped and resized")
+            self.update_filenames()
+        print("\nDone searching for images that needs to be edited!")
+
+    # method for checking whether the image needs to be resized only or not.
+    # returns the image if it needs resize. returns nothing if it doesn't.
+    # an image needs to be resized if it is less than 1080p but the ratio is 16:9
+    def check_need_resize( self, filename ):
         imagePath = os.path.join(self.dirname, filename)
         with Image.open(imagePath) as image:
             ratio = image.width/image.height
-            isWithinRatio = (16/9)*98/100 <= ratio <= (16/9)*102/100        # check whether the image ratio is 16:9 (with +- 2% tolerance)
-            if image.height < 1080 or image.width < 1920 or not isWithinRatio:
+            isWithinRatio = (16/9)*98/100 <= ratio <= (16/9)*102/100
+            if image.height < 1080 and image.width < 1920 and isWithinRatio:
+                return filename
+
+    # method for checking whether the image needs to be cropped only or not
+    # returns the image if it needs crop. Returns nothing if it doesn't.
+    # an image needs to be resized if it is higher than 1080p but the ratio is not 16:9
+    def check_need_crop( self, filename ):
+        imagePath = os.path.join(self.dirname, filename)
+        with Image.open(imagePath) as image:
+            ratio = image.width/image.height
+            isWithinRatio = (16/9)*98/100 <= ratio <= (16/9)*102/100
+            if image.height >= 1080 and image.width >= 1920 and not isWithinRatio:
+                return filename
+
+    # method for checking whether the image needs to be cropped and resized
+    def check_need_crop_resize( self, filename ):
+        imagePath = os.path.join(self.dirname, filename)
+        with Image.open(imagePath) as image:
+            ratio = image.width/image.height
+            isWithinRatio = (16/9)*98/100 <= ratio <= (16/9)*102/100
+            if image.height < 1080 and image.width < 1920 or not isWithinRatio:
                 return filename
