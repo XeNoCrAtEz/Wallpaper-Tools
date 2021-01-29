@@ -294,5 +294,5 @@ class WPProcessor():
         with Image.open(imagePath) as image:
             ratio = image.width/image.height
             isWithinRatio = (16/9)*98/100 <= ratio <= (16/9)*102/100
-            if image.height < 1080 and image.width < 1920 and not isWithinRatio:
+            if image.height < 1080 or image.width < 1920 and not isWithinRatio:
                 return filename
